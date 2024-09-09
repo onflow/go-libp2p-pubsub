@@ -623,6 +623,7 @@ func (gs *GossipSubRouter) HandleRPC(rpc *RPC) {
 		return
 	}
 
+	log.Errorf("SEND: replying to iwants with %d pubs to peer %s", len(ihave), rpc.from)
 	out := rpcWithControl(ihave, nil, iwant, nil, prune)
 	gs.sendRPC(rpc.from, out)
 }
@@ -1040,6 +1041,7 @@ func (gs *GossipSubRouter) Publish(msg *Message) {
 			continue
 		}
 
+		log.Errorf("SEND publishing message to peer %s", pid)
 		gs.sendRPC(pid, out)
 	}
 }
@@ -1144,6 +1146,7 @@ func (gs *GossipSubRouter) sendRPC(p peer.ID, out *RPC) {
 	if ok {
 		out = copyRPC(out)
 		own = true
+		log.Errorf("SEND piggybacking control messages to peer %s", p)
 		gs.piggybackControl(p, out, ctl)
 		delete(gs.control, p)
 	}
@@ -1155,6 +1158,7 @@ func (gs *GossipSubRouter) sendRPC(p peer.ID, out *RPC) {
 			out = copyRPC(out)
 			own = true
 		}
+		log.Errorf("SEND piggybacking gossip messages to peer %s", p)
 		gs.piggybackGossip(p, out, ihave)
 		delete(gs.gossip, p)
 	}
@@ -1166,6 +1170,7 @@ func (gs *GossipSubRouter) sendRPC(p peer.ID, out *RPC) {
 
 	// If we're below the max message size, go ahead and send
 	if out.Size() < gs.p.maxMessageSize {
+		log.Errorf("SEND sending rpc messages to peer %s", p)
 		gs.doSendRPC(out, p, mch)
 		return
 	}
@@ -1177,13 +1182,14 @@ func (gs *GossipSubRouter) sendRPC(p peer.ID, out *RPC) {
 		return
 	}
 
+	log.Errorf("SEND sending %d rpc messages to peer %s", len(outRPCs), p)
 	for _, rpc := range outRPCs {
 		gs.doSendRPC(rpc, p, mch)
 	}
 }
 
 func (gs *GossipSubRouter) doDropRPC(rpc *RPC, p peer.ID, reason string) {
-	log.Debugf("dropping message to peer %s: %s", p, reason)
+	log.Errorf("SEND dropping message to peer %s: %s", p, reason)
 	gs.tracer.DropRPC(rpc, p)
 	// push control messages that need to be retried
 	ctl := rpc.GetControl()
@@ -1766,6 +1772,7 @@ func (gs *GossipSubRouter) emitGossip(topic string, exclude map[peer.ID]struct{}
 
 func (gs *GossipSubRouter) flush() {
 	// send gossip first, which will also piggyback pending control
+	log.Errorf("SEND flushing %d gossip messages", len(gs.gossip))
 	for p, ihave := range gs.gossip {
 		delete(gs.gossip, p)
 		out := rpcWithControl(nil, ihave, nil, nil, nil)
@@ -1773,6 +1780,7 @@ func (gs *GossipSubRouter) flush() {
 	}
 
 	// send the remaining control messages that wasn't merged with gossip
+	log.Errorf("SEND flushing %d control messages", len(gs.control))
 	for p, ctl := range gs.control {
 		delete(gs.control, p)
 		out := rpcWithControl(nil, nil, nil, ctl.Graft, ctl.Prune)
@@ -1801,6 +1809,7 @@ func (gs *GossipSubRouter) pushControl(p peer.ID, ctl *pb.ControlMessage) {
 	ctl.Ihave = nil
 	ctl.Iwant = nil
 	if ctl.Graft != nil || ctl.Prune != nil {
+		log.Errorf("SEND pushControl called for peer %s", p)
 		gs.control[p] = ctl
 	}
 }
