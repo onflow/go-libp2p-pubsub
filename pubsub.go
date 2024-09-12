@@ -1133,14 +1133,14 @@ func (p *PubSub) pushMsg(msg *Message) {
 
 	err := p.checkSigningPolicy(msg)
 	if err != nil {
-		log.Errorf("dropping message from %s: %s", src, err)
+		log.Debugf("dropping message from %s: %s", src, err)
 		return
 	}
 
 	// reject messages claiming to be from ourselves but not locally published
 	self := p.host.ID()
 	if peer.ID(msg.GetFrom()) == self && src != self {
-		log.Errorf("dropping message claiming to be from self but forwarded from %s", src)
+		log.Debugf("dropping message claiming to be from self but forwarded from %s", src)
 		p.tracer.RejectMessage(msg, RejectSelfOrigin)
 		return
 	}
@@ -1152,7 +1152,6 @@ func (p *PubSub) pushMsg(msg *Message) {
 		return
 	}
 
-	log.Errorf("RECEIVE pushing msg to validation queue from origin: %s, received_from: %s", msg.From, msg.ReceivedFrom)
 	if !p.val.Push(src, msg) {
 		return
 	}
