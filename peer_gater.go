@@ -318,6 +318,7 @@ func (pg *peerGater) getPeerIP(p peer.ID) string {
 
 // router interface
 func (pg *peerGater) AcceptFrom(p peer.ID) AcceptStatus {
+	fmt.Println("PEER GATER STARTING ACCEPT FROM")
 	if pg == nil {
 		return AcceptAll
 	}
@@ -336,6 +337,7 @@ func (pg *peerGater) AcceptFrom(p peer.ID) AcceptStatus {
 		return AcceptAll
 	}
 
+	fmt.Println(fmt.Sprintf("PEER GATER THRESHOLD DATA: validate:%f throttle/validate:%f threshold: %f", pg.validate, pg.throttle/pg.validate, pg.params.Threshold))
 	// check the throttle/validate ration; if it is below threshold we accept.
 	if pg.validate != 0 && pg.throttle/pg.validate < pg.params.Threshold {
 		return AcceptAll
@@ -344,7 +346,9 @@ func (pg *peerGater) AcceptFrom(p peer.ID) AcceptStatus {
 	st := pg.getPeerStats(p)
 
 	// compute the goodput of the peer; the denominator is the weighted mix of message counters
+
 	total := st.deliver + pg.params.DuplicateWeight*st.duplicate + pg.params.IgnoreWeight*st.ignore + pg.params.RejectWeight*st.reject
+	fmt.Println(fmt.Printf("PEER GATER STATS: total: %f duplicate: %f ignore: %f reject: %f", st.deliver, st.duplicate, st.ignore, st.reject))
 	if total == 0 {
 		return AcceptAll
 	}
@@ -354,10 +358,12 @@ func (pg *peerGater) AcceptFrom(p peer.ID) AcceptStatus {
 	// throttle in the first negative event; it also ensures that a peer always has a chance of being
 	// accepted; this is not a sinkhole/blacklist.
 	threshold := (1 + st.deliver) / (1 + total)
+	fmt.Println("PEER GATER THRESHOLD", threshold)
 	if rand.Float64() < threshold {
 		return AcceptAll
 	}
 
+	fmt.Println("PEER THROTTLED")
 	log.Debugf("throttling peer %s with threshold %f", p, threshold)
 	return AcceptControl
 }
